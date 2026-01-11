@@ -1,16 +1,16 @@
 fn main() {
-	let mut a = 0;
-	let mut b = 1;
-	let mut sum;
+	let mut a: u128 = 0;
+	let mut b: u128 = 1;
+	let mut sum: u128;
 	
-	for i in 0..10 {
+	for i in 0..100 {
 		if i <= 1 {
-			println!("{}", i);
+			println!("{}: {}", i, i);
 		} else {
 			sum = a + b;
 			a = b;
 			b = sum;
-			println!("{}", b);
+			println!("{} : {}", i, b);
 		}
 	}
 }
