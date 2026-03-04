@@ -1,0 +1,34 @@
+use crate::EventProvider;
+use chrono::NaiveDate;
+use crate::events::{Event, Category};
+
+#[allow(dead_code)]
+pub struct NewProvider {
+    name: String,
+}
+
+impl NewProvider {
+    pub fn new(name: &str) -> Self {
+        Self { name: name.to_string() }
+    }
+}
+
+impl EventProvider for NewProvider {
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn get_events(&self, events: &mut Vec<Event>) {
+        events.push(Event::new_singular(
+            NaiveDate::from_ymd_opt(2025, 12, 11).unwrap(),
+            String::from("Rust 1.92.0 released"),
+            Category::from_str("programming/rust")
+        ));
+        
+        events.push(Event::new_singular(
+            NaiveDate::from_ymd_opt(2015, 5, 15).unwrap(),
+            String::from("Rust 1.0.0 released"),
+            Category::new("programming", "rust")
+        ));
+    }
+}
