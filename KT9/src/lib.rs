@@ -5,16 +5,18 @@ use std::path::Path;
 
 mod birthday;
 pub mod events;
+pub mod filters;
 pub mod providers;
 
 use events::{Event, MonthDay};
 use crate::providers::EventProvider;
 use crate::providers::{
     csvfile::CSVFileProvider,
-  newprovider::NewProvider,
     textfile::TextFileProvider,
     sqlite::SQLiteProvider,
 };
+use crate::filters::FilterBuilder;
+
 
 #[derive(Deserialize, Debug)]
 pub struct ProviderConfig {
@@ -33,11 +35,17 @@ pub fn run(config: &Config, config_path: &Path)-> Result<(), Box<dyn Error>> {
 
   let mut events: Vec<Event> = Vec::new();
   let providers = create_providers(config, config_path);
+
+  let today: NaiveDate = Local::now().date_naive();
+  let filter = FilterBuilder::new()
+   .month_day(MonthDay::new(today.month(), today.day()))
+   .build();
+
   let mut event_lines: Vec<String> = Vec::new();
   let mut count = 0;
   for provider in providers {
     let provider_name = provider.name();
-    provider.get_events(&mut events); // polymorphism at work!
+    provider.get_events(&filter, &mut events); // polymorphism at work!
     let new_count = events.len();
     if provider_name == "events-db" {
       for event in &events[count..new_count] {
@@ -80,10 +88,6 @@ fn create_providers(config: &Config, config_path: &Path) -> Vec::<Box<dyn EventP
       },
       "csv" => {
         let provider = CSVFileProvider::new(&cfg.name, &path);
-        providers.push(Box::new(provider));
-      },
-      "new" => {
-        let provider = NewProvider::new(&cfg.name);
         providers.push(Box::new(provider));
       },
       "sqlite" => {
