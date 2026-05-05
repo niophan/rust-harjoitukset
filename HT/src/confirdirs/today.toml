@@ -1,0 +1,26 @@
+[[providers]]
+name = "history"
+kind = "csv"
+resource = "history.csv"
+
+[[providers]]
+name = "programming"
+kind = "text"
+resource = "programming.txt"
+
+[[providers]]
+name = "computing"
+kind = "text"
+resource = "computing.txt"
+
+
+[[providers]]
+name = "events-db"
+kind = "sqlite"
+resource = "events.db"
+
+
+[[providers]]
+name = "todayserver"
+kind = "web"
+resource = "https://todayserver-89bb2a1b2e80.herokuapp.com/api/v1/events"

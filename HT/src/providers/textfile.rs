@@ -1,0 +1,123 @@
+use std::path::{Path, PathBuf};
+use std::fs::{File, OpenOptions};
+use std::io::{BufReader, BufRead, BufWriter, Write};
+use std::fmt;
+
+use chrono::{NaiveDate};
+
+use crate::EventProvider;
+use crate::events::{Event, Category, EventKind};
+use crate::filters::EventFilter;
+
+
+#[allow(dead_code)]
+enum ReadingState {
+    Date,
+    Description,
+    Category,
+    Separator,
+}
+
+impl fmt::Display for ReadingState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", match self {
+            ReadingState::Date => "DATE",
+            ReadingState::Description => "DESCRIPTION",
+            ReadingState::Category => "CATEGORY",
+            ReadingState::Separator => "SEPARATOR",
+        })
+    }
+}
+
+#[allow(dead_code)]
+pub struct TextFileProvider {
+    name: String,
+    path: PathBuf,
+}
+
+#[allow(dead_code)]
+impl TextFileProvider {
+    pub fn new(name: &str, path: &Path) -> Self {
+        Self { name: name.to_string(), path: path.to_path_buf() }
+    }
+}
+
+impl EventProvider for TextFileProvider {
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn get_events(&self, filter: &EventFilter, events: &mut Vec<Event>) {
+        let f = File::open(self.path.clone()).expect("path to text file");
+        let reader = BufReader::new(f);
+        let mut state = ReadingState::Date;
+        let mut date_string = String::new();
+        let mut description = String::new();
+        let mut category_string = String::new();
+
+        for line_result in reader.lines() {
+            let line = line_result.expect("read line");
+            match state {
+                ReadingState::Date => {
+                    date_string = line;
+                    state = ReadingState::Description;
+                },
+                ReadingState::Description => {
+                    description = line;
+                    state = ReadingState::Category;
+                },
+                ReadingState::Category => {
+                    category_string = line;
+                    state = ReadingState::Separator;
+                },
+                ReadingState::Separator => {
+                    let _event: Event;
+                    match NaiveDate::parse_from_str(&date_string, "%F") {
+                        Ok(date) => {
+                            let category = Category::from_str(&category_string);
+                            let event = Event::new_singular( 
+                                date, 
+                                description.clone(), 
+                                category);
+                            if filter.accepts(&event) {
+                                events.push(event);
+                            }
+                        },
+                        Err(_) => {
+                            eprintln!("Invalid date '{}'", date_string);
+                        }
+                    }
+                    state = ReadingState::Date;
+                }
+            }
+        }
+    }
+
+    fn is_add_supported(&self) -> bool { true }
+
+    fn add_event(&self, event: &Event) -> Result<(), super::EventProviderError> {
+        if !self.is_add_supported() {
+            return Err(super::EventProviderError::OperationNotSupported);
+        }
+
+        let file = OpenOptions::new()
+            .append(true)
+            .open(self.path.clone())
+            .expect("path to text file for writing");
+
+        let mut writer = BufWriter::new(file);
+
+        let result = match event.kind {
+            EventKind::Singular(date) => {
+                let _ = writeln!(writer, "{}", date.to_string());
+                let _ = writeln!(writer, "{}", event.description());
+                let _ = writeln!(writer, "{}", event.category());
+                let _ = writeln!(writer, "");
+                Ok(())
+            }
+        };
+
+        result
+    }
+
+}
